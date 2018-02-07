@@ -1,0 +1,13 @@
+{
+  "name": "dan-westall.co.uk",
+  "version": "1",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "css": "node-sass src/sass/main.sass assets/css/main.css",
+    "watch:css": "yarn css -- -w"
+  },
+  "dependencies": {
+    "node-sass": "^4.7.2"
+  }
+}
