@@ -41,6 +41,22 @@ func main() {
 		})
 	})
 
+	router.GET("/caravan-weather", func(c *gin.Context) {
+		err = db.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte("LUMINOSITY")).Bucket([]byte("TEMPERATURE"))
+
+			c := b.Cursor()
+
+			for k, v := c.First(); k != nil; k, v = c.Next() {
+				log.Printf("key=%s, value=%s\n", k, v)
+			}
+			return nil
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	})
+
 	router.POST("/caravan-weather", func(c *gin.Context) {
 		var json Login
 		if err := c.ShouldBindJSON(&json); err != nil {
@@ -49,7 +65,7 @@ func main() {
 		}
 
 		// No these passwords are not used in production.
-		if json.User != "foo" || json.Password != "bar" {
+		if json.User != "user" || json.Password != "password" {
 			c.JSON(http.StatusUnauthorized, gin.H{"status": "unauthorized"})
 			return
 		}
