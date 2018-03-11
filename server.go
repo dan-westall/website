@@ -5,6 +5,7 @@ import (
 	"github.com/boltdb/bolt"
 	"net/http"
 	"path/filepath"
+	"encoding/json"
 	"os"
 	"log"
 	"time"
@@ -23,6 +24,8 @@ type WeatherReport struct {
 	Temperature string `json:"temp" binding:"required"`
 	Luminosity  string `json:"luminosity" binding:"required"`
 }
+
+
 
 func main() {
 	db, err := setupDB()
@@ -70,12 +73,7 @@ func main() {
 			return
 		}
 
-		err = addLuminosity(db, json.Weather.Luminosity)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = addTemperature(db, json.Weather.Temperature)
+		err = addResult(db, json.Weather.Temperature, json.Weather.Luminosity)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -88,19 +86,14 @@ func main() {
 
 func setupDB() (*bolt.DB, error) {
 
-	db, err := bolt.Open("caravan_weather.db", 0600, nil)
+	db, err := bolt.Open("caravan_weather_v2.db", 0600, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not open db, %v", err)
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
 
-		root, err := tx.CreateBucketIfNotExists([]byte("LUMINOSITY"))
-		if err != nil {
-			return fmt.Errorf("could not create bucket: %v", err)
-		}
-
-		_, err = root.CreateBucketIfNotExists([]byte("TEMPERATURE"))
+		root, err := tx.CreateBucketIfNotExists([]byte("ENTRIES"))
 		if err != nil {
 			return fmt.Errorf("could not create bucket: %v", err)
 		}
@@ -117,14 +110,21 @@ func setupDB() (*bolt.DB, error) {
 	return db, nil
 }
 
-func addLuminosity(db *bolt.DB, lumens string) error {
-	err := db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte("LUMINOSITY"))
+func addResult(db *bolt.DB, celsius string, lumen string ) error {
+
+	entry := WeatherReport{Temperature: celsius, Luminosity: lumen}
+	entryBytes, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("could not marshal entry json: %v", err)
+	}
+
+	err = db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte("ENTRIES"))
 		if err != nil {
 			return err
 		}
 
-		err = bucket.Put([]byte(time.Now().Format(time.RFC3339)), []byte(lumens))
+		err = bucket.Put([]byte(time.Now().Format(time.RFC3339)), entryBytes)
 		if err != nil {
 			return err
 		}
@@ -136,26 +136,5 @@ func addLuminosity(db *bolt.DB, lumens string) error {
 		log.Fatal(err)
 	}
 
-	return nil
-}
-
-func addTemperature(db *bolt.DB, celsius string) error {
-	err := db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte("TEMPERATURE"))
-		if err != nil {
-			return err
-		}
-
-		err = bucket.Put([]byte(time.Now().Format(time.RFC3339)), []byte(celsius))
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		log.Fatal(err)
-	}
 	return nil
 }
