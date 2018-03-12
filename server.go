@@ -46,9 +46,7 @@ func main() {
 
 	router.GET("/caravan-weather", func(c *gin.Context) {
 		err = db.View(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte("LUMINOSITY")).Bucket([]byte("TEMPERATURE"))
-
-			c := b.Cursor()
+			c := tx.Bucket([]byte("DB")).Bucket([]byte("W_ENTRIES")).Cursor()
 
 			for k, v := c.First(); k != nil; k, v = c.Next() {
 				log.Printf("key=%s, value=%s\n", k, v)
@@ -93,7 +91,12 @@ func setupDB() (*bolt.DB, error) {
 
 	err = db.Update(func(tx *bolt.Tx) error {
 
-		root, err := tx.CreateBucketIfNotExists([]byte("ENTRIES"))
+		root, err := tx.CreateBucketIfNotExists([]byte("DB"))
+		if err != nil {
+			return fmt.Errorf("could not create bucket: %v", err)
+		}
+
+		_, err = root.CreateBucketIfNotExists([]byte("W_ENTRIES"))
 		if err != nil {
 			return fmt.Errorf("could not create bucket: %v", err)
 		}
@@ -119,12 +122,7 @@ func addResult(db *bolt.DB, celsius string, lumen string ) error {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte("ENTRIES"))
-		if err != nil {
-			return err
-		}
-
-		err = bucket.Put([]byte(time.Now().Format(time.RFC3339)), entryBytes)
+		err = tx.Bucket([]byte("DB")).Bucket([]byte("W_ENTRIES")).Put([]byte(time.Now().Format(time.RFC3339)), entryBytes)
 		if err != nil {
 			return err
 		}
