@@ -25,9 +25,11 @@ type WeatherReport struct {
 	Luminosity  string `json:"luminosity" binding:"required"`
 }
 
-
+var auth string
 
 func main() {
+
+
 	db, err := setupDB()
 	if err != nil {
 		log.Fatal(err)
@@ -35,12 +37,19 @@ func main() {
 	//close DB connection on termination
 	defer db.Close()
 
+	// We need to build the current direct path
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	exPath := filepath.Dir(ex)
+
 	router := gin.Default()
-	router.LoadHTMLGlob(filepath.Join(os.Getenv("GOPATH"), "src/website/views/**/*"))
+	router.LoadHTMLGlob(filepath.Join(exPath, "/views/**/*"))
 	router.Static("/css", "src/website/assets/css")
 	router.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.tmpl", gin.H{
-			"title": "Hello World",
+			"title": filepath.Join(exPath, "/views/**/*"),
 		})
 	})
 
@@ -66,7 +75,7 @@ func main() {
 		}
 
 		// No these passwords are not used in production.
-		if json.User != "user" || json.Password != "password" {
+		if json.User != "user" || json.Password != auth {
 			c.JSON(http.StatusUnauthorized, gin.H{"status": "unauthorized"})
 			return
 		}
